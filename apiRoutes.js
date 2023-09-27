@@ -93,7 +93,7 @@ router.post('/orders', (req, res) => {
 
   // Loop melalui setiap kondisi
   conditions.forEach((condition, index) => {
-    const { id, Supplier_Name, Service, order_date } = condition;
+    const { Supplier_Name, Service, order_date } = condition;
     const { operator: suplierOperator, value: suplierValue } = Supplier_Name;
     const { operator: serviceOperator, value: serviceValue } = Service;
     const { operator: dateOperator, startDate, endDate, aDates } = order_date;
@@ -106,8 +106,9 @@ router.post('/orders', (req, res) => {
     // Filter berdasarkan Supplier_Name
     if (suplierValue) {
       if (Array.isArray(suplierValue)) {
-        qSupplier = `Supplier_Name IN (?)`;
-        values.push(suplierValue);
+        const placeholders = suplierValue.map(() => '?').join(', ');
+        qSupplier = `Supplier_Name IN (${placeholders})`;
+        values.push(...suplierValue);
       } else {
         qSupplier = `Supplier_Name ${suplierOperator === 'is' ? '=' : '!='} ? `;
         values.push(suplierValue);
@@ -117,8 +118,9 @@ router.post('/orders', (req, res) => {
     // Filter berdasarkan Service
     if (serviceValue) { 
       if (Array.isArray(serviceValue)) {
-        qService = `Service IN (?)`;
-        values.push(serviceValue);
+        const placeholders = suplierValue.map(() => '?').join(', ');
+        qService = `Service IN (${placeholders})`;
+        values.push(...serviceValue);
       } else {
         qService = `Service ${serviceOperator === 'is' ? '=' : '!='} ?`;
         values.push(serviceValue);
@@ -140,19 +142,19 @@ router.post('/orders', (req, res) => {
     if (qSupplier) {
       query += qSupplier
       if (qService) {
-        query += 'AND ' + qService
+        query += ' AND ' + qService
         if (qDate) {
-          query += 'AND ' + qDate
+          query += ' AND ' + qDate
         }
       } else {
         if (qDate) {
-          query += 'AND ' + qDate
+          query += ' AND ' + qDate
         }
       }
     } else if (qService) {
       query += qService
       if (qDate) {
-        query += 'AND ' + qDate
+        query += ' AND ' + qDate
       }
     } else if (qDate) {
       query += qDate
