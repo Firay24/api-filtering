@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('./dbconfig')
 
 router.get('/orders', (req, res) => {
-    // Mencari semua parameter yang memiliki awalan 'conditions'.
     const conditionParameters = Object.keys(req.query).filter((param) =>
       param.startsWith('conditions')
     );
@@ -20,7 +19,6 @@ router.get('/orders', (req, res) => {
       return
     }
   
-    // Membangun kueri SQL berdasarkan semua kondisi yang ada.
     const conditionClauses = [];
   
     conditionParameters.forEach((conditionParameter, index) => {
@@ -36,7 +34,6 @@ router.get('/orders', (req, res) => {
             const values = parsedConditions[key];
   
             if (key === 'start_date' && parsedConditions.hasOwnProperty('end_date')) {
-              // Jika ada 'start_date' dan 'end_date', dan 'end_date' tidak sama dengan 'start_date', gunakan kriteria rentang tanggal.
               if (values !== parsedConditions.end_date) {
                 conditionClause.push(`order_date BETWEEN '${values}' AND '${parsedConditions.end_date}'`);
               }
@@ -45,7 +42,7 @@ router.get('/orders', (req, res) => {
             } else if (key === 'less_than') {
               conditionClause.push(`order_date < '${values}'`);
             } else if (key !== 'end_date') {
-              // Tambahkan semua kondisi kecuali 'end_date'.
+              
               if (Array.isArray(values)) {
                 const subQuery = values.map((value) => `${key} = '${value}'`).join(' OR ');
                 conditionClause.push(`(${subQuery})`);
@@ -76,7 +73,7 @@ router.get('/orders', (req, res) => {
       }
       sql = 'SELECT * FROM ordersNew WHERE ' + sql
       console.log(sql)
-      // Menjalankan kueri SQL.
+
       db.query(sql, (error, results) => {
         if (error) {
           res.status(500).json({ error: 'Terjadi kesalahan dalam mengambil data.' });
@@ -102,42 +99,69 @@ router.post('/orders', (req, res) => {
     const { operator: dateOperator, startDate, endDate, aDates } = order_date;
 
     query += ` (`;
+    let qSupplier = ''
+    let qService = ''
+    let qDate = ''
 
     // Filter berdasarkan Supplier_Name
-    if (Array.isArray(suplierValue)) {
-      query += `Supplier_Name IN (?) AND `;
-      values.push(suplierValue);
-    } else {
-      query += `Supplier_Name ${suplierOperator === 'is' ? '=' : '!='} ? AND `;
-      values.push(suplierValue);
-    }
+    if (suplierValue) {
+      if (Array.isArray(suplierValue)) {
+        qSupplier = `Supplier_Name IN (?)`;
+        values.push(suplierValue);
+      } else {
+        qSupplier = `Supplier_Name ${suplierOperator === 'is' ? '=' : '!='} ? `;
+        values.push(suplierValue);
+      }
+    };
     
     // Filter berdasarkan Service
-    if (Array.isArray(serviceValue)) {
-      query += `Service IN (?) AND `;
-      values.push(serviceValue);
-    } else {
-      query += `Service ${serviceOperator === 'is' ? '=' : '!='} ? AND `;
-      values.push(serviceValue);
+    if (serviceValue) { 
+      if (Array.isArray(serviceValue)) {
+        qService = `Service IN (?)`;
+        values.push(serviceValue);
+      } else {
+        qService = `Service ${serviceOperator === 'is' ? '=' : '!='} ?`;
+        values.push(serviceValue);
+      }
     }
     
     // Filter berdasarkan order_date
-    if (dateOperator === 'between') {
-      query += `order_date BETWEEN ? AND ?`;
+    if (dateOperator === 'between' && startDate && endDate) {
+      qDate = `order_date BETWEEN ? AND ?`;
       values.push(startDate, endDate);
-    } else if (dateOperator === 'more then') {
-      query += `order_date > ?`;
+    } else if (dateOperator === 'more then' && aDates) {
+      qDate = `order_date > ?`;
       values.push(aDates);
-    } else if (dateOperator === 'less then') {
-      query += `order_date < ?`;
+    } else if (dateOperator === 'less then' && aDates) {
+      qDate = `order_date < ?`;
       values.push(aDates);
+    }
+
+    if (qSupplier) {
+      query += qSupplier
+      if (qService) {
+        query += 'AND ' + qService
+        if (qDate) {
+          query += 'AND ' + qDate
+        }
+      } else {
+        if (qDate) {
+          query += 'AND ' + qDate
+        }
+      }
+    } else if (qService) {
+      query += qService
+      if (qDate) {
+        query += 'AND ' + qDate
+      }
+    } else if (qDate) {
+      query += qDate
     }
 
     query += `)`;
 
-    // Tambahkan operator logika sesuai dengan hubungan antar kondisi
     if (index < operators.length) {
-      query += ` ${operators[index].operator} `;
+      query += ` ${operators[index]} `;
     }
     
   });
@@ -164,10 +188,7 @@ router.get('/orders/supplier', (req, res) => {
       console.error('Error executing query:', err);
       res.status(500).json({ error: 'Internal Server Error' });
     } else {
-      // Manipulasi hasil query untuk mendapatkan array Supplier_Name
       const supplierNames = results.map(result => result.Supplier_Name);
-
-      // Kirim array Supplier_Name sebagai respons
       res.json(supplierNames);
     }
   });
@@ -183,10 +204,7 @@ router.get('/orders/service', (req, res) => {
       console.error('Error executing query:', err);
       res.status(500).json({ error: 'Internal Server Error' });
     } else {
-      // Manipulasi hasil query untuk mendapatkan array Supplier_Name
       const supplierNames = results.map(result => result.Service);
-
-      // Kirim array Supplier_Name sebagai respons
       res.json(supplierNames);
     }
   });
