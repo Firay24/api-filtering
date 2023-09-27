@@ -107,7 +107,7 @@ router.post('/orders', (req, res) => {
     if (suplierValue) {
       if (Array.isArray(suplierValue)) {
         const placeholders = suplierValue.map(() => '?').join(', ');
-        qSupplier = `Supplier_Name IN (${placeholders})`;
+        qSupplier = `Supplier_Name ${suplierOperator === 'not in' ? 'NOT IN' : 'IN'} (${placeholders})`;
         values.push(...suplierValue);
       } else {
         qSupplier = `Supplier_Name ${suplierOperator === 'is' ? '=' : '!='} ? `;
@@ -118,8 +118,8 @@ router.post('/orders', (req, res) => {
     // Filter berdasarkan Service
     if (serviceValue) { 
       if (Array.isArray(serviceValue)) {
-        const placeholders = suplierValue.map(() => '?').join(', ');
-        qService = `Service IN (${placeholders})`;
+        const placeholders = serviceValue.map(() => '?').join(', ');
+        qService = `Service ${serviceOperator === 'not in' ? 'NOT IN' : 'IN'} (${placeholders})`;
         values.push(...serviceValue);
       } else {
         qService = `Service ${serviceOperator === 'is' ? '=' : '!='} ?`;
@@ -128,7 +128,14 @@ router.post('/orders', (req, res) => {
     }
     
     // Filter berdasarkan order_date
-    if (dateOperator === 'between' && startDate && endDate) {
+    if (dateOperator === 'empty') {
+      qDate = `order_date IS NULL`;
+    } else if (dateOperator === 'not empty') {
+      qDate = `order_date IS NOT NULL`;
+    } else if (dateOperator === 'is' && aDates) {
+      qDate = `order_date = ?`;
+      values.push(aDates);
+    } else if (dateOperator === 'between' && startDate && endDate) {
       qDate = `order_date BETWEEN ? AND ?`;
       values.push(startDate, endDate);
     } else if (dateOperator === 'more then' && aDates) {
