@@ -7,7 +7,8 @@ const cors = require('cors')
 app.use(express.json())
 
 const allowedOrigins = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://ui-filtering.vercel.app"
 ];
 
 app.use(cors({
